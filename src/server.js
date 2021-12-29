@@ -8,28 +8,76 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use(cors());
 const server = http.createServer(app);
 const io = socketio(server);
-// let count = 0;
+
+const users = {};
+
+io.use((socket, next) => {
+    const name = socket.handshake.auth.name;
+    if (!name) {
+        return next(new Error("invalid username"));
+    }
+    socket.name = name;
+    next();
+});
 
 io.on('connection', (socket) => {
+    console.log(`${socket.name} is connected successfully`);
 
-    console.log('Connected to the socket server ========>');
+    let all_users = [];
 
-    // socket.emit('initialCount', count);
 
-    // socket.on('incrementCount', () => {
-    //     count ++ ;
-    //     io.emit('updatedCount',count);
-    // });
-    socket.on('newUser',(name) => {
-        socket.emit('welcome',`Hi ${name}, Welcome you are connected.`);
+    socket.on("room-connect", (room) => {
+        socket.join(room);
+        const room_clients = io.sockets.adapter.rooms.get(room);
+
+        for (const clientId of room_clients) {
+
+            //this is the socket of each client in the room.
+            const clientSocket = io.sockets.sockets.get(clientId);
+
+            all_users.push({
+                userID: clientSocket.id,
+                name: clientSocket.name,
+            });
+        };
+        users[socket.id] = socket.name;
+        io.to(room).emit("users-list",all_users);
+        io.to(room).emit("user-joined", { message: `${socket.name} joined this room.`, name: users[socket.id] });
+    })
+
+
+    socket.on('new-user-joined', (name) => {
+        users[socket.id] = name;
+        // socket.broadcast.emit('user-joined', `${name} joined the chat`);
     });
+
+    socket.on('send', ({ message, to }) => {
+        socket.to(to).emit('receive', { message: message, name: users[socket.id] });
+    });
+
+    socket.on("disconnecting", () => {
+        console.log(socket.rooms); // the Set contains at least the socket ID
+        for (const clientId of socket.rooms) {
+
+                //this is the socket of each client in the room.
+                const clientSocket = io.sockets.sockets.get(clientId);
     
-    socket.on('sendMessage',(message) => {
-        socket.emit('messageSent',message);
-    });
+                io.to(clientId).emit("user-joined", { message: `${socket.name} left this room.`, name: users[socket.id] });
+            };
+      });
 
     socket.on('disconnect', () => {
-        io.emit('disconnectUser','User disconnected')
+        delete users[socket.id];
+        // io.to(room).emit("user-joined", { message: `${socket.name} left this room.`, name: users[socket.id] });
+        // all_users = [];;
+        // for (let [id, socket] of io.of("/").sockets) {
+        //     all_users.push({
+        //         userID: id,
+        //         name: socket.name,
+        //     });
+        // }
+        // console.log("disconnecting user =====>")
+        // io.emit("users-list", all_users);
     });
 
 });
