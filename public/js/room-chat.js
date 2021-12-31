@@ -5,7 +5,7 @@ const messageInput = document.getElementById('messageInp');
 const messageContainer = document.querySelector('.container');
 const usersSidebar = document.querySelector('.sidebar');
 const userslistSidebar = document.querySelector('.userlist');
-
+const roomButton = document.querySelector('#buttonDiv');
 let selectedUser = null;
 
 // Taking name with the user.
@@ -18,10 +18,14 @@ socket.auth = { name };
 
 // Connecting the user to the user;
 socket.connect();
-socket.emit("room-connect",room);
-socket.on("user-joined",(messageObj)=>{
-    listing([{userID:room,name:room}])
+socket.emit("room-connect", room);
+socket.on("user-joined", (messageObj) => {
+    if(!document.getElementById(messageObj.room_name)) {
+
+        listing([{ userID: messageObj.room_name, name: messageObj.room_name }]);
+    }
     appendMessage(`${messageObj.name}: ${messageObj.message}`, 'left');
+    createNewRoomButton();
 })
 // Handling the connecton error.
 socket.on("connect_error", (err) => {
@@ -57,7 +61,7 @@ form.addEventListener('submit', (e) => {
     const message = messageInput.value;
     messageInput.value = '';
     appendMessage(`You: ${message}`, 'right');
-    socket.emit('send', { message, to: room });
+    socket.emit('send', { message, to: selectedUser });
 })
 
 // Function to create a div and show the message to the chat box
@@ -71,7 +75,7 @@ const appendMessage = (message, position) => {
 
 // Function to create a users list.
 const listing = (users) => {
-    removeChild(usersSidebar);
+    // removeChild(usersSidebar);
     for (let index = 0; index < users.length; index++) {
         const user = users[index];
         messageInput.disabled = true;
@@ -84,10 +88,16 @@ const listing = (users) => {
             usersSidebar.append(userElement);
             userElement.addEventListener('click', (e) => {
                 removeChild(messageContainer);
-                    selectedUser = e.target.id;
-                    document.getElementById(selectedUser).style.backgroundColor = "green";
-                    messageInput.disabled = false;
-                    document.getElementById('sendBtn').disabled = false;
+                if (selectedUser) {
+                    document.getElementById(selectedUser).style.backgroundColor = "burlywood";
+                }
+                selectedUser = e.target.id;
+                document.getElementById(selectedUser).style.backgroundColor = "green";
+                messageInput.disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                if(document.getElementById(selectedUser).style.backgroundColor == "green") {
+                    socket.emit("users-list",selectedUser);
+                }
             });
         }
         else {
@@ -98,9 +108,28 @@ const listing = (users) => {
 };
 
 const showUserList = (users) => {
-
+    removeChild(userslistSidebar);
+    for (let index = 0; index < users.length; index++) {
+        const user = users[index];
+        const userElement = document.createElement('p');
+        userElement.innerText = user.name;
+        userslistSidebar.append(userElement);
+    }
 }
 
+const createNewRoomButton = () => {
+    removeChild(roomButton)
+    const buttonElement = document.createElement('button');
+    buttonElement.innerText = "Join New Room";
+    buttonElement.classList.add('btn');
+    buttonElement.addEventListener('click', (e) => {
+        const new_room = prompt("Enter room to join");
+        if (new_room) {
+            socket.emit("room-connect", new_room);
+        }
+    })
+    roomButton.append(buttonElement);
+}
 // Remove all the child node.
 const removeChild = (element) => {
     var child = element.lastElementChild;

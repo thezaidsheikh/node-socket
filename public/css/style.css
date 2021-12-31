@@ -15,6 +15,13 @@
     height: 300px;
 }
 
+.userlist{
+    float: left;
+    width: 30.33%;
+    padding: 10px;
+    height: 300px;
+}
+
 .list {
     display: block;
     border: 2px solid;

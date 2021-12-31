@@ -28,8 +28,28 @@ io.on('connection', (socket) => {
 
     socket.on("room-connect", (room) => {
         socket.join(room);
-        const room_clients = io.sockets.adapter.rooms.get(room);
+        // const room_clients = io.sockets.adapter.rooms.get(room);
 
+        // for (const clientId of room_clients) {
+
+        //     //this is the socket of each client in the room.
+        //     const clientSocket = io.sockets.sockets.get(clientId);
+
+        //     all_users.push({
+        //         userID: clientSocket.id,
+        //         name: clientSocket.name,
+        //     });
+        // };
+        if(!users[socket.id]) {
+            users[socket.id] = socket.name;
+        }
+        // io.to(room).emit("users-list",all_users);
+        io.to(room).emit("user-joined", { message: `${socket.name} joined this room.`, name: users[socket.id] ,room_name:room});
+    })
+
+    socket.on('users-list',(room)=> {
+        const room_clients = io.sockets.adapter.rooms.get(room);
+        all_users = [];
         for (const clientId of room_clients) {
 
             //this is the socket of each client in the room.
@@ -40,12 +60,8 @@ io.on('connection', (socket) => {
                 name: clientSocket.name,
             });
         };
-        users[socket.id] = socket.name;
         io.to(room).emit("users-list",all_users);
-        io.to(room).emit("user-joined", { message: `${socket.name} joined this room.`, name: users[socket.id] });
     })
-
-
     socket.on('new-user-joined', (name) => {
         users[socket.id] = name;
         // socket.broadcast.emit('user-joined', `${name} joined the chat`);
